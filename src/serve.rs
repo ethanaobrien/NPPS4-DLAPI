@@ -27,6 +27,7 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use clap::Args;
 use tower_http::{
     catch_panic::CatchPanicLayer, cors::CorsLayer, services::ServeDir, trace::TraceLayer,
 };
@@ -505,7 +506,18 @@ async fn v7_microdl_handler(
 
 // ── Entry point ────────────────────────────────────────────────────────────────
 
-pub async fn run() -> anyhow::Result<()> {
+/// Arguments for the `serve` subcommand (also the defaults when running
+/// without a subcommand).
+#[derive(Debug, Default, Args)]
+pub struct ServeArgs {
+    /// Enable permissive (wildcard) CORS on `/api/v1/getdb/{name}` so
+    /// browser-based tools (e.g. sqlite-viewer) can fetch the game database
+    /// cross-origin. Disabled by default.
+    #[arg(long)]
+    pub getdb_cors: bool,
+}
+
+pub async fn run(args: ServeArgs) -> anyhow::Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -542,12 +554,16 @@ pub async fn run() -> anyhow::Result<()> {
         git_commit: Arc::new(git_commit),
     };
 
-    // GET /api/v1/getdb/{name} — needs wildcard CORS so external tools (e.g.
-    // sqlite-viewer) can fetch the database directly from the browser.
-    let getdb_route = Router::new()
-        .route("/api/v1/getdb/{name}", get(getdb_handler))
-        .layer(CorsLayer::permissive())
-        .layer(middleware::from_fn_with_state(state.clone(), verify_api_access));
+    // GET /api/v1/getdb/{name} — the wildcard CORS layer is only applied with
+    // --getdb-cors; it lets external tools (e.g. sqlite-viewer) fetch the
+    // database directly from the browser.
+    let mut getdb_route = Router::new().route("/api/v1/getdb/{name}", get(getdb_handler));
+    if args.getdb_cors {
+        info!("Wildcard CORS enabled on /api/v1/getdb/* (--getdb-cors)");
+        getdb_route = getdb_route.layer(CorsLayer::permissive());
+    }
+    let getdb_route =
+        getdb_route.layer(middleware::from_fn_with_state(state.clone(), verify_api_access));
 
     // API routes with access control middleware
     let api_routes = Router::new()

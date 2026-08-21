@@ -128,6 +128,14 @@ CLI Tools
 
 The `n4dlapi` binary provides three subcommands. Run without a subcommand (or with `serve`) to start the API server.
 
+### `n4dlapi serve [options]`
+
+Starts the API server (this is also the default when no subcommand is given).
+
+| Flag | Default | Description |
+|---|---|---|
+| `--getdb-cors` | — | Enable permissive (wildcard) CORS on `/api/v1/getdb/{name}` so browser-based tools (e.g. sqlite-viewer) can fetch the game database cross-origin |
+
 ### `n4dlapi upgrade <archive-root>`
 
 Upgrades an archive to the latest generation (currently **1.2**), running the required stages in order. This is required before running the server.

@@ -40,7 +40,7 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// Start the download API server (default when no subcommand given).
-    Serve,
+    Serve(serve::ServeArgs),
     /// Upgrade an archive-root to the latest generation (currently 1.2).
     ///
     /// Runs the required stages in order. 1.0 -> 1.1 hashes all archives and
@@ -58,8 +58,12 @@ enum Commands {
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     match cli.command {
-        None | Some(Commands::Serve) => {
-            tokio::runtime::Runtime::new()?.block_on(serve::run())
+        None => {
+            tokio::runtime::Runtime::new()?
+                .block_on(serve::run(serve::ServeArgs::default()))
+        }
+        Some(Commands::Serve(args)) => {
+            tokio::runtime::Runtime::new()?.block_on(serve::run(args))
         }
         Some(Commands::Upgrade(args)) => upgrade::run(args),
         Some(Commands::Clone(args)) => clone_cmd::run(args),
